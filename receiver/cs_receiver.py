@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env vpython3
 
 """
  /*
@@ -21,21 +21,30 @@
 from threading import Thread
 from subprocess import Popen, PIPE, STDOUT
 import select, socket
-import SocketServer
+import socketserver
 
 HOST = ''
 PORT = 53515
-IP = '192.168.0.11'
+IP = '192.168.2.106'
 
 bufferSize = 1024
 meta_data = '{"port":%d,"name":"PyReceiver @ %s","id":"%s","width":1280,"height":960,"mirror":"h264","audio":"pcm","subtitles":"text/vtt","proxyHeaders":true,"hls":false,"upsell":true}' % (PORT, IP, IP)
 
 SAVE_TO_FILE = False
-class MyTCPHandler(SocketServer.BaseRequestHandler):
+SAVE_TO_FILE = True
+
+class MyTCPHandler(socketserver.BaseRequestHandler):
     def handle(self):
-	if SAVE_TO_FILE:
+        if SAVE_TO_FILE:
             f = open('video.raw', 'wb')
-        p = Popen(['ffplay', '-framerate', '30', '-'], stdin=PIPE, stdout=PIPE)
+        p = Popen([
+            'ffplay',
+            '-framerate', '30',
+            "-infbuf",
+            "-framedrop",
+            "-analyzeduration", "1",
+            '-'
+        ], stdin=PIPE, stdout=PIPE)
         #p = Popen(['gst-launch-1.0', 'fdsrc', '!', 'h264parse', '!', 'avdec_h264', '!', 'autovideosink'], stdin=PIPE, stdout=PIPE)
         skiped_metadata = False
         while True:
@@ -43,21 +52,21 @@ class MyTCPHandler(SocketServer.BaseRequestHandler):
             if data == None or len(data) <= 0:
                 break
             if not skiped_metadata:
-                print "Client connected, addr: ", self.client_address[0]
-                if data.find('\r\n\r\n') > 0:
-                    last_ctrl = data.find('\r\n\r\n') + 4
-                    print 'Recv control data: ', data[0:last_ctrl]
+                print("Client connected, addr: ", self.client_address[0])
+                if data.find(b'\r\n\r\n') > 0:
+                    last_ctrl = data.find(b'\r\n\r\n') + 4
+                    print('Recv control data: ', data[0:last_ctrl])
                     if len(data) > last_ctrl:
                         p.stdin.write(data[last_ctrl:])
-	                if SAVE_TO_FILE:
+                        if SAVE_TO_FILE:
                             f.write(data[last_ctrl:])
                 skiped_metadata = True
             else:
                 p.stdin.write(data)
-	        if SAVE_TO_FILE:
+                if SAVE_TO_FILE:
                     f.write(data)
         p.kill()
-	if SAVE_TO_FILE:
+        if SAVE_TO_FILE:
             f.close()
 
 def resp_hello(ip, port):
@@ -73,14 +82,14 @@ def handle_discovery():
         if len(result[0]) <= 0:
             continue
         msg, address = result[0][0].recvfrom(bufferSize)
-        print 'Receive broadcast msg: ', msg
+        print('Receive broadcast msg: ', msg)
         if msg == 'hello':
-            print 'Got discover msg, src ip: %s, port: %d' % (address[0], address[1])
+            print('Got discover msg, src ip: %s, port: %d' % (address[0], address[1]))
             resp_hello(address[0], address[1])
 
 
 if __name__ == "__main__":
-    server = SocketServer.TCPServer((HOST, PORT), MyTCPHandler)
+    server = socketserver.TCPServer((HOST, PORT), MyTCPHandler)
     server_thread = Thread(target=server.serve_forever)
     server_thread.daemon = True
     server_thread.start()

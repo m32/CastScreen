@@ -36,7 +36,7 @@ def connect_to_server():
         print 'Sending mirror cmd'
         sock.sendall(message)
 
-	if SAVE_TO_FILE:
+        if SAVE_TO_FILE:
             f = open('video_client.raw', 'wb')
         p = Popen(['ffplay', '-framerate', '30', '-'], stdin=PIPE, stdout=PIPE)
         #p = Popen(['gst-launch-1.0', 'fdsrc', '!', 'h264parse', '!', 'avdec_h264', '!', 'autovideosink'], stdin=PIPE, stdout=PIPE)
@@ -51,15 +51,15 @@ def connect_to_server():
                     print 'Recv control data: ', data[0:last_ctrl]
                     if len(data) > last_ctrl:
                         p.stdin.write(data[last_ctrl:])
-	                if SAVE_TO_FILE:
+                        if SAVE_TO_FILE:
                             f.write(data[last_ctrl:])
                 skiped_metadata = True
             else:
                 p.stdin.write(data)
-	        if SAVE_TO_FILE:
+                if SAVE_TO_FILE:
                     f.write(data)
         p.kill()
-	if SAVE_TO_FILE:
+        if SAVE_TO_FILE:
             f.close()
 
     finally:
